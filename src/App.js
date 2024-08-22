@@ -3,11 +3,12 @@ import { ChakraProvider, Box, VStack, HStack, Heading, Text, Button, Input, Text
 import { QrReader } from 'react-qr-reader';
 import { BellIcon, CheckIcon, TimeIcon, WarningIcon } from '@chakra-ui/icons';
 import { BrowserRouter as Router, Route, Switch as RouterSwitch, Redirect } from 'react-router-dom';
-import { initializeApp } from 'firebase/app';
+import { app, auth } from './firebaseConfig';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { useTranslation } from 'react-i18next';
 import './i18n';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import AdminView from './AdminView';
 
 function App() {
   const [data, setData] = useState('No result');
@@ -41,6 +42,7 @@ function App() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isAdminLogin, setIsAdminLogin] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [newAccount, setNewAccount] = useState({ username: '', password: '', role: 'waiter' });
   const [isAddingAccount, setIsAddingAccount] = useState(false);
@@ -53,6 +55,17 @@ function App() {
 
   // Waiter view enhancements
   const [orderProgress, setOrderProgress] = useState({});
+
+  // Restaurant info for AdminView
+  const [restaurantInfo, setRestaurantInfo] = useState({
+    id: '12345',
+    name: 'Sample Restaurant',
+    tables: 'unlimited',
+    backgroundColor: '#ffffff',
+    textColor: '#000000',
+    logo: null,
+    customText: '',
+  });
 
   // Initialize Firebase
   useEffect(() => {
@@ -307,21 +320,43 @@ function App() {
       <Box minHeight="100vh" padding={6}>
         <VStack spacing={6} align="stretch">
           <Heading as="h1" size="xl">Restaurant Management System</Heading>
+          <LanguageSwitcher />
 
           {!user ? (
             <Box>
               <Heading as="h2" size="lg" mb={4}>Welcome</Heading>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleLogin();
-              }}>
-                <VStack spacing={4} align="stretch">
-                  <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
-                  <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                  <Button type="submit" colorScheme="blue">Login</Button>
-                  <Text>Don't have an account? <Button variant="link" onClick={() => setIsSignUp(true)}>Sign Up</Button></Text>
-                </VStack>
-              </form>
+              <VStack spacing={6} align="stretch">
+                <Box>
+                  <Heading as="h3" size="md" mb={2}>QR Code Scanner</Heading>
+                  {scanning ? (
+                    <Box width="300px" height="300px">
+                      <QrReader
+                        delay={300}
+                        onError={handleError}
+                        onResult={handleScan}
+                        style={{ width: '100%' }}
+                      />
+                    </Box>
+                  ) : (
+                    <Button colorScheme="blue" onClick={() => setScanning(true)}>
+                      Start Scanning
+                    </Button>
+                  )}
+                  <Text fontSize="lg" mt={2}>Scanned Data: {data}</Text>
+                </Box>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  handleLogin();
+                }}>
+                  <VStack spacing={4} align="stretch">
+                    <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
+                    <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <Button type="submit" colorScheme="blue">Login</Button>
+                    <Text>Don't have an account? <Button variant="link" onClick={() => setIsSignUp(true)}>Sign Up</Button></Text>
+                  </VStack>
+                </form>
+                <Button variant="link" size="sm" onClick={() => setIsAdminLogin(true)}>Restaurant Admin Login</Button>
+              </VStack>
             </Box>
           ) : (
             <>
@@ -388,99 +423,20 @@ function App() {
               )}
 
               {user.role === 'admin' && (
-                <Box>
-                  <Heading as="h2" size="lg" mb={4}>Admin View</Heading>
-                  <Tabs>
-                    <TabList>
-                      <Tab>Stock Management</Tab>
-                      <Tab>Account Management</Tab>
-                    </TabList>
-                    <TabPanels>
-                      <TabPanel>
-                        <Heading as="h3" size="md" mb={2}>Stock Management</Heading>
-                        <List spacing={3}>
-                          {menuItems.map(item => (
-                            <ListItem key={item.id}>
-                              <HStack justifyContent="space-between">
-                                <Text>{item.name} - ${item.price}</Text>
-                                <Switch
-                                  isChecked={item.inStock}
-                                  onChange={() => toggleStockStatus(item.id)}
-                                  colorScheme={item.inStock ? "green" : "red"}
-                                />
-                              </HStack>
-                            </ListItem>
-                          ))}
-                        </List>
-                      </TabPanel>
-                      <TabPanel>
-                        <Heading as="h3" size="md" mb={2}>Account Management</Heading>
-                        <Button
-                          colorScheme="blue"
-                          onClick={() => setIsAddingAccount(true)}
-                          mb={4}
-                          isDisabled={accounts.length >= (user.plan === 'unlimited' ? Infinity : 5)}
-                        >
-                          Add New Account
-                        </Button>
-                        <List spacing={3}>
-                          {accounts.map(account => (
-                            <ListItem key={account.id}>
-                              <HStack justifyContent="space-between">
-                                <Text>{account.username} - {account.role}</Text>
-                                <Button colorScheme="red" size="sm" onClick={() => handleDeleteAccount(account.id)}>
-                                  Delete
-                                </Button>
-                              </HStack>
-                            </ListItem>
-                          ))}
-                        </List>
-                      </TabPanel>
-                    </TabPanels>
-                  </Tabs>
-                  <Modal isOpen={isAddingAccount} onClose={() => setIsAddingAccount(false)}>
-                    <ModalOverlay />
-                    <ModalContent>
-                      <ModalHeader>Add New Account</ModalHeader>
-                      <ModalCloseButton />
-                      <ModalBody>
-                        <VStack spacing={4}>
-                          <FormControl>
-                            <FormLabel>Username</FormLabel>
-                            <Input
-                              value={newAccount.username}
-                              onChange={(e) => setNewAccount({...newAccount, username: e.target.value})}
-                            />
-                          </FormControl>
-                          <FormControl>
-                            <FormLabel>Password</FormLabel>
-                            <Input
-                              type="password"
-                              value={newAccount.password}
-                              onChange={(e) => setNewAccount({...newAccount, password: e.target.value})}
-                            />
-                          </FormControl>
-                          <FormControl>
-                            <FormLabel>Role</FormLabel>
-                            <Select
-                              value={newAccount.role}
-                              onChange={(e) => setNewAccount({...newAccount, role: e.target.value})}
-                            >
-                              <option value="waiter">Waiter</option>
-                              <option value="cook">Cook</option>
-                            </Select>
-                          </FormControl>
-                        </VStack>
-                      </ModalBody>
-                      <ModalFooter>
-                        <Button colorScheme="blue" mr={3} onClick={addAccount}>
-                          Add Account
-                        </Button>
-                        <Button variant="ghost" onClick={() => setIsAddingAccount(false)}>Cancel</Button>
-                      </ModalFooter>
-                    </ModalContent>
-                  </Modal>
-                </Box>
+                <AdminView
+                  user={user}
+                  menuItems={menuItems}
+                  toggleStockStatus={toggleStockStatus}
+                  accounts={accounts}
+                  setIsAddingAccount={setIsAddingAccount}
+                  handleDeleteAccount={handleDeleteAccount}
+                  isAddingAccount={isAddingAccount}
+                  newAccount={newAccount}
+                  setNewAccount={setNewAccount}
+                  addAccount={addAccount}
+                  restaurantInfo={restaurantInfo}
+                  setRestaurantInfo={setRestaurantInfo}
+                />
               )}
 
               {user.role === 'customer' && (
@@ -511,23 +467,26 @@ function App() {
                 </Box>
               )}
 
-              <Box>
-                <Heading as="h2" size="lg" mb={2}>QR Code Scanner</Heading>
-                {scanning ? (
-                  <Box width="300px" height="300px">
+              <Box mb={6}>
+                <Heading as="h2" size="lg" mb={4}>Welcome to Our Restaurant</Heading>
+                <Text fontSize="lg" mb={4}>Scan a QR code to get started or log in to your account.</Text>
+                <Box width="300px" height="300px" mx="auto" mb={4}>
+                  {scanning ? (
                     <QrReader
                       delay={300}
                       onError={handleError}
                       onResult={handleScan}
                       style={{ width: '100%' }}
                     />
-                  </Box>
-                ) : (
-                  <Button colorScheme="blue" onClick={() => setScanning(true)}>
-                    Start Scanning
-                  </Button>
+                  ) : (
+                    <Button colorScheme="blue" size="lg" onClick={() => setScanning(true)} width="100%">
+                      Start QR Scanning
+                    </Button>
+                  )}
+                </Box>
+                {data !== 'No result' && (
+                  <Text fontSize="lg" mt={2} textAlign="center">Scanned Data: {data}</Text>
                 )}
-                <Text fontSize="lg" mt={2}>Scanned Data: {data}</Text>
               </Box>
 
               <Box>
