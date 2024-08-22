@@ -1,0 +1,96 @@
+{
+  "app": {
+    "title": "Restaurant Management System",
+    "welcome": "Welcome",
+    "login": {
+      "username": "Username",
+      "password": "Password",
+      "button": "Login",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign Up"
+    },
+    "logout": "Logout",
+    "roles": {
+      "admin": "Admin",
+      "waiter": "Waiter",
+      "cook": "Cook",
+      "customer": "Customer"
+    },
+    "views": {
+      "admin": "Admin View",
+      "waiter": "Waiter View",
+      "cook": "Cook View",
+      "customer": "Customer View"
+    },
+    "menu": {
+      "items": {
+        "burger": "Burger",
+        "fries": "Fries",
+        "pizza": "Pizza",
+        "salad": "Salad"
+      }
+    },
+    "order": {
+      "status": {
+        "pending": "Pending",
+        "preparing": "Preparing",
+        "ready": "Ready",
+        "delivered": "Delivered",
+        "noStock": "No Stock"
+      },
+      "actions": {
+        "start": "Start Order",
+        "ready": "Order Ready",
+        "deliver": "Deliver Order",
+        "complete": "Order Completed"
+      }
+    },
+    "notifications": {
+      "title": "New Notification",
+      "orderReady": "Order #{orderId} ready for table {table}",
+      "tableCall": "Table {table} needs assistance"
+    },
+    "payment": {
+      "title": "Payment",
+      "amount": "Current Order Amount: ${amount}",
+      "methods": {
+        "myUsual": "My Usual",
+        "cash": "Cash",
+        "card": "Card",
+        "voucher": "Voucher"
+      },
+      "pay": "Pay",
+      "voucherBalance": "Voucher Balance: ${balance}",
+      "recommend": "Recommend a Friend"
+    },
+    "qrScanner": {
+      "title": "QR Code Scanner",
+      "start": "Start Scanning",
+      "scannedData": "Scanned Data: {data}"
+    },
+    "comments": {
+      "title": "Comments",
+      "add": "Add",
+      "placeholder": "Add a comment"
+    },
+    "stockManagement": {
+      "title": "Stock Management",
+      "inStock": "In Stock",
+      "outOfStock": "Out of Stock"
+    },
+    "accountManagement": {
+      "title": "Account Management",
+      "add": "Add New Account",
+      "delete": "Delete",
+      "modal": {
+        "title": "Add New Account",
+        "username": "Username",
+        "password": "Password",
+        "role": "Role",
+        "addButton": "Add Account",
+        "cancel": "Cancel"
+      }
+    },
+    "callWaiter": "Call Waiter"
+  }
+}

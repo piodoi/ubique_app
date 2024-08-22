@@ -5,6 +5,9 @@ import { BellIcon, CheckIcon, TimeIcon, WarningIcon } from '@chakra-ui/icons';
 import { BrowserRouter as Router, Route, Switch as RouterSwitch, Redirect } from 'react-router-dom';
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { useTranslation } from 'react-i18next';
+import './i18n';
+import LanguageSwitcher from './components/LanguageSwitcher';
 
 function App() {
   const [data, setData] = useState('No result');
