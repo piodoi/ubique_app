@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { ChakraProvider, Box, VStack, HStack, Heading, Text, Button, Input, Textarea, List, ListItem, Breadcrumb, BreadcrumbItem, BreadcrumbLink, Grid, useToast, Switch, Badge, Flex, FormControl, FormLabel, Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton, Select, Tabs, TabList, TabPanels, Tab, TabPanel, RadioGroup, Radio, Progress } from '@chakra-ui/react';
+import { ChakraProvider, Box, VStack, HStack, Heading, Text, Button, Input, List, ListItem, Grid, useToast, Badge, Flex, FormControl, FormLabel, RadioGroup, Radio, Progress, Alert, AlertIcon, AlertTitle, AlertDescription } from '@chakra-ui/react';
 import { QrReader } from 'react-qr-reader';
 import { BellIcon, CheckIcon, TimeIcon, WarningIcon } from '@chakra-ui/icons';
-import { BrowserRouter as Router, Route, Switch as RouterSwitch, Redirect } from 'react-router-dom';
-import { app, auth } from './firebaseConfig';
+import { app } from './firebaseConfig';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import './i18n';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import AdminView from './AdminView';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
+  const { t } = useTranslation();
   const [data, setData] = useState('No result');
   const [scanning, setScanning] = useState(false);
   const [comments, setComments] = useState([]);
@@ -21,7 +23,6 @@ function App() {
     { id: 3, name: 'Pizza', price: 15, inStock: true },
     { id: 4, name: 'Salad', price: 8, inStock: true },
   ]);
-  const [currentMenu, setCurrentMenu] = useState([menuItems[0]]);
   const [orders, setOrders] = useState([
     { id: 1, table: 1, items: [1, 2], status: 'pending', progress: 0 },
     { id: 2, table: 2, items: [3, 4], status: 'pending', progress: 0 },
@@ -29,6 +30,9 @@ function App() {
   const [waiterNotifications, setWaiterNotifications] = useState([]);
   const [tableCalls, setTableCalls] = useState([]);
   const toast = useToast();
+
+  const [firebaseConnected, setFirebaseConnected] = useState(true);
+  const [firebaseError, setFirebaseError] = useState(null);
 
   const clearNotification = (type, index) => {
     if (type === 'order') {
@@ -48,13 +52,9 @@ function App() {
   const [isAddingAccount, setIsAddingAccount] = useState(false);
 
   // Payment and voucher system
-  const [paymentMethods] = useState(['my usual', 'cash', 'card', 'voucher']);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('my usual');
   const [voucherBalance, setVoucherBalance] = useState(0);
   const [currentOrderAmount, setCurrentOrderAmount] = useState(0);
-
-  // Waiter view enhancements
-  const [orderProgress, setOrderProgress] = useState({});
 
   // Restaurant info for AdminView
   const [restaurantInfo, setRestaurantInfo] = useState({
@@ -67,25 +67,35 @@ function App() {
     customText: '',
   });
 
-  // Initialize Firebase
+  // Initialize Firebase and check connection
   useEffect(() => {
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID",
+    const checkFirebaseConnection = async () => {
+      try {
+        const messaging = getMessaging(app);
+        await messaging.getToken();
+        setFirebaseConnected(true);
+        setFirebaseError(null);
+      } catch (error) {
+        console.error('Firebase connection error:', error);
+        setFirebaseConnected(false);
+        setFirebaseError(error.message);
+      }
     };
 
-    const app = initializeApp(firebaseConfig);
+    checkFirebaseConnection();
+  }, []);
+
+  // Initialize Firebase Messaging if connected
+  useEffect(() => {
+    if (!firebaseConnected) return;
+
     const messaging = getMessaging(app);
 
     // Request permission for notifications
     Notification.requestPermission().then((permission) => {
       if (permission === 'granted') {
         console.log('Notification permission granted.');
-        getToken(messaging, { vapidKey: 'YOUR_PUBLIC_VAPID_KEY' }).then((currentToken) => {
+        getToken(messaging, { vapidKey: process.env.REACT_APP_FIREBASE_VAPID_KEY }).then((currentToken) => {
           if (currentToken) {
             console.log('FCM registration token:', currentToken);
             // TODO: Send the token to your server
@@ -109,7 +119,7 @@ function App() {
         isClosable: true,
       });
     });
-  }, []);
+  }, [toast]);
 
   const handlePayment = () => {
     const success = processPayment(selectedPaymentMethod, currentOrderAmount, voucherBalance, setVoucherBalance);
@@ -237,11 +247,6 @@ function App() {
     });
   };
 
-  useEffect(() => {
-    const storedComments = JSON.parse(localStorage.getItem('recentComments')) || [];
-    setComments(storedComments);
-  }, []);
-
   const handleScan = (result) => {
     if (result) {
       setData(result?.text);
@@ -253,24 +258,7 @@ function App() {
     console.error(error);
   };
 
-  const addComment = () => {
-    if (newComment.trim()) {
-      const updatedComments = [newComment, ...comments.slice(0, 9)];
-      setComments(updatedComments);
-      localStorage.setItem('recentComments', JSON.stringify(updatedComments));
-      setNewComment('');
-    }
-  };
-
-  const navigateMenu = (item) => {
-    const newPath = [...currentMenu];
-    const existingIndex = newPath.findIndex(menuItem => menuItem.id === item.id);
-    if (existingIndex !== -1) {
-      setCurrentMenu(newPath.slice(0, existingIndex + 1));
-    } else {
-      setCurrentMenu([...newPath, item]);
-    }
-  };
+// Removed unused navigateMenu function
 
   const updateOrderStatus = (orderId, newStatus) => {
     setOrders(prevOrders =>
@@ -317,200 +305,219 @@ function App() {
 
   return (
     <ChakraProvider>
-      <Box minHeight="100vh" padding={6}>
-        <VStack spacing={6} align="stretch">
-          <Heading as="h1" size="xl">Restaurant Management System</Heading>
-          <LanguageSwitcher />
+      <ErrorBoundary>
+        <Box minHeight="100vh" padding={6}>
+          <VStack spacing={6} align="stretch">
+            <Heading as="h1" size="xl">Restaurant Management System</Heading>
+            <LanguageSwitcher />
 
-          {!user ? (
-            <Box>
-              <Heading as="h2" size="lg" mb={4}>Welcome</Heading>
-              <VStack spacing={6} align="stretch">
-                <Box>
-                  <Heading as="h3" size="md" mb={2}>QR Code Scanner</Heading>
-                  {scanning ? (
-                    <Box width="300px" height="300px">
+            {firebaseError ? (
+              <Alert status="error">
+                <AlertIcon />
+                <AlertTitle mr={2}>Firebase Connection Error</AlertTitle>
+                <AlertDescription>Some features may be unavailable.</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {!user ? (
+              <Box>
+                <Heading as="h2" size="lg" mb={4}>Welcome</Heading>
+                <VStack spacing={6} align="stretch">
+                  <Box>
+                    <Heading as="h3" size="md" mb={2}>QR Code Scanner</Heading>
+                    {scanning ? (
+                      <Box width="300px" height="300px">
+                        <QrReader
+                          delay={300}
+                          onError={handleError}
+                          onResult={handleScan}
+                          style={{ width: '100%' }}
+                        />
+                      </Box>
+                    ) : (
+                      <Button colorScheme="blue" onClick={() => setScanning(true)}>
+                        Start Scanning
+                      </Button>
+                    )}
+                    <Text fontSize="lg" mt={2}>Scanned Data: {data}</Text>
+                  </Box>
+                  {!firebaseError && (
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      handleLogin();
+                    }}>
+                      <VStack spacing={4} align="stretch">
+                        <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
+                        <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                        <Button type="submit" colorScheme="blue">Login</Button>
+                        <Text>Don't have an account? <Button variant="link" onClick={() => setIsSignUp(true)}>Sign Up</Button></Text>
+                      </VStack>
+                    </form>
+                  )}
+                  {!firebaseError && (
+                    <Button variant="link" size="sm" onClick={() => setIsAdminLogin(true)}>Restaurant Admin Login</Button>
+                  )}
+                </VStack>
+              </Box>
+            ) : (
+              <>
+                <Text>Welcome, {user.username}!</Text>
+                <Button colorScheme="red" onClick={handleLogout}>Logout</Button>
+
+                {user.role === 'cook' && (
+                  <Box>
+                    <Heading as="h2" size="lg" mb={2}>Cook View</Heading>
+                    <Grid templateColumns="repeat(auto-fill, minmax(250px, 1fr))" gap={6}>
+                      {orders.map(order => (
+                        <Box key={order.id} borderWidth={1} borderRadius="lg" p={4}>
+                          <Heading size="md" mb={2}>Order #{order.id} - Table {order.table}</Heading>
+                          <Text mb={2}>{order.items.map(item => menuItems.find(mi => mi.id === item)?.name).join(', ')}</Text>
+                          <Text mb={4}>Status: {order.status}</Text>
+                          <VStack spacing={2}>
+                            <Button
+                              colorScheme="blue"
+                              size="lg"
+                              width="100%"
+                              onClick={() => updateOrderStatus(order.id, 'started')}
+                              isDisabled={order.items.some(item => !menuItems.find(mi => mi.id === item)?.inStock)}
+                            >
+                              Start Order
+                            </Button>
+                            <Button
+                              colorScheme="green"
+                              size="lg"
+                              width="100%"
+                              onClick={() => updateOrderStatus(order.id, 'ready')}
+                              isDisabled={order.items.some(item => !menuItems.find(mi => mi.id === item)?.inStock)}
+                            >
+                              Order Ready
+                            </Button>
+                            <Button
+                              colorScheme="red"
+                              size="lg"
+                              width="100%"
+                              onClick={() => updateOrderStatus(order.id, 'no stock')}
+                            >
+                              No Stock
+                            </Button>
+                          </VStack>
+                        </Box>
+                      ))}
+                    </Grid>
+                  </Box>
+                )}
+
+                {user.role === 'waiter' && (
+                  <Box>
+                    <Heading as="h2" size="lg" mb={2}>Waiter View</Heading>
+                    <WaiterView
+                      orders={orders}
+                      updateOrderStatus={updateOrderStatus}
+                      tableCalls={tableCalls}
+                      setTableCalls={setTableCalls}
+                      waiterNotifications={waiterNotifications}
+                      setWaiterNotifications={setWaiterNotifications}
+                      clearNotification={clearNotification}
+                      menuItems={menuItems}
+                    />
+                  </Box>
+                )}
+
+                {user.role === 'admin' && (
+                  <AdminView
+                    user={user}
+                    menuItems={menuItems}
+                    toggleStockStatus={toggleStockStatus}
+                    accounts={accounts}
+                    setIsAddingAccount={setIsAddingAccount}
+                    handleDeleteAccount={handleDeleteAccount}
+                    isAddingAccount={isAddingAccount}
+                    newAccount={newAccount}
+                    setNewAccount={setNewAccount}
+                    addAccount={addAccount}
+                    restaurantInfo={restaurantInfo}
+                    setRestaurantInfo={setRestaurantInfo}
+                  />
+                )}
+
+                {user.role === 'customer' && (
+                  <Box>
+                    <Heading as="h2" size="lg" mb={2}>Customer View</Heading>
+                    <VStack spacing={4} align="stretch">
+                      <Button
+                        colorScheme="blue"
+                        size="lg"
+                        onClick={() => setTableCalls(prev => [...prev, { table: user.table, time: new Date() }])}
+                      >
+                        Call Waiter
+                      </Button>
+                      <Heading as="h3" size="md">Payment</Heading>
+                      <Text>Current Order Amount: ${currentOrderAmount.toFixed(2)}</Text>
+                      <RadioGroup value={selectedPaymentMethod} onChange={setSelectedPaymentMethod}>
+                        <VStack align="start">
+                          <Radio value="myUsual">My Usual</Radio>
+                          <Radio value="cash">Cash</Radio>
+                          <Radio value="card">Card</Radio>
+                          <Radio value="voucher">Voucher</Radio>
+                        </VStack>
+                      </RadioGroup>
+                      <Button colorScheme="green" onClick={() => handlePayment(currentOrderAmount)}>Pay</Button>
+                      <Text>Voucher Balance: ${voucherBalance.toFixed(2)}</Text>
+                      <Button colorScheme="purple" onClick={handleRecommendation}>Recommend a Friend</Button>
+                    </VStack>
+                  </Box>
+                )}
+
+                <Box mb={6}>
+                  <Heading as="h2" size="lg" mb={4}>Welcome to Our Restaurant</Heading>
+                  <Text fontSize="lg" mb={4}>Scan a QR code to get started or log in to your account.</Text>
+                  <Box width="300px" height="300px" mx="auto" mb={4}>
+                    {scanning ? (
                       <QrReader
                         delay={300}
                         onError={handleError}
                         onResult={handleScan}
                         style={{ width: '100%' }}
                       />
-                    </Box>
-                  ) : (
-                    <Button colorScheme="blue" onClick={() => setScanning(true)}>
-                      Start Scanning
-                    </Button>
-                  )}
-                  <Text fontSize="lg" mt={2}>Scanned Data: {data}</Text>
-                </Box>
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  handleLogin();
-                }}>
-                  <VStack spacing={4} align="stretch">
-                    <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
-                    <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                    <Button type="submit" colorScheme="blue">Login</Button>
-                    <Text>Don't have an account? <Button variant="link" onClick={() => setIsSignUp(true)}>Sign Up</Button></Text>
-                  </VStack>
-                </form>
-                <Button variant="link" size="sm" onClick={() => setIsAdminLogin(true)}>Restaurant Admin Login</Button>
-              </VStack>
-            </Box>
-          ) : (
-            <>
-              <Text>Welcome, {user.username}!</Text>
-              <Button colorScheme="red" onClick={handleLogout}>Logout</Button>
-
-              {user.role === 'cook' && (
-                <Box>
-                  <Heading as="h2" size="lg" mb={2}>Cook View</Heading>
-                  <Grid templateColumns="repeat(auto-fill, minmax(250px, 1fr))" gap={6}>
-                    {orders.map(order => (
-                      <Box key={order.id} borderWidth={1} borderRadius="lg" p={4}>
-                        <Heading size="md" mb={2}>Order #{order.id} - Table {order.table}</Heading>
-                        <Text mb={2}>{order.items.map(item => menuItems.find(mi => mi.id === item)?.name).join(', ')}</Text>
-                        <Text mb={4}>Status: {order.status}</Text>
-                        <VStack spacing={2}>
-                          <Button
-                            colorScheme="blue"
-                            size="lg"
-                            width="100%"
-                            onClick={() => updateOrderStatus(order.id, 'started')}
-                            isDisabled={order.items.some(item => !menuItems.find(mi => mi.id === item)?.inStock)}
-                          >
-                            Start Order
-                          </Button>
-                          <Button
-                            colorScheme="green"
-                            size="lg"
-                            width="100%"
-                            onClick={() => updateOrderStatus(order.id, 'ready')}
-                            isDisabled={order.items.some(item => !menuItems.find(mi => mi.id === item)?.inStock)}
-                          >
-                            Order Ready
-                          </Button>
-                          <Button
-                            colorScheme="red"
-                            size="lg"
-                            width="100%"
-                            onClick={() => updateOrderStatus(order.id, 'no stock')}
-                          >
-                            No Stock
-                          </Button>
-                        </VStack>
-                      </Box>
-                    ))}
-                  </Grid>
-                </Box>
-              )}
-
-              {user.role === 'waiter' && (
-                <Box>
-                  <Heading as="h2" size="lg" mb={2}>Waiter View</Heading>
-                  <WaiterView
-                    orders={orders}
-                    updateOrderStatus={updateOrderStatus}
-                    tableCalls={tableCalls}
-                    setTableCalls={setTableCalls}
-                    waiterNotifications={waiterNotifications}
-                    setWaiterNotifications={setWaiterNotifications}
-                    clearNotification={clearNotification}
-                    menuItems={menuItems}
-                  />
-                </Box>
-              )}
-
-              {user.role === 'admin' && (
-                <AdminView
-                  user={user}
-                  menuItems={menuItems}
-                  toggleStockStatus={toggleStockStatus}
-                  accounts={accounts}
-                  setIsAddingAccount={setIsAddingAccount}
-                  handleDeleteAccount={handleDeleteAccount}
-                  isAddingAccount={isAddingAccount}
-                  newAccount={newAccount}
-                  setNewAccount={setNewAccount}
-                  addAccount={addAccount}
-                  restaurantInfo={restaurantInfo}
-                  setRestaurantInfo={setRestaurantInfo}
-                />
-              )}
-
-              {user.role === 'customer' && (
-                <Box>
-                  <Heading as="h2" size="lg" mb={2}>Customer View</Heading>
-                  <VStack spacing={4} align="stretch">
-                    <Button
-                      colorScheme="blue"
-                      size="lg"
-                      onClick={() => setTableCalls(prev => [...prev, { table: user.table, time: new Date() }])}
-                    >
-                      Call Waiter
-                    </Button>
-                    <Heading as="h3" size="md">Payment</Heading>
-                    <Text>Current Order Amount: ${currentOrderAmount.toFixed(2)}</Text>
-                    <RadioGroup value={selectedPaymentMethod} onChange={setSelectedPaymentMethod}>
-                      <VStack align="start">
-                        <Radio value="myUsual">My Usual</Radio>
-                        <Radio value="cash">Cash</Radio>
-                        <Radio value="card">Card</Radio>
-                        <Radio value="voucher">Voucher</Radio>
-                      </VStack>
-                    </RadioGroup>
-                    <Button colorScheme="green" onClick={() => handlePayment(currentOrderAmount)}>Pay</Button>
-                    <Text>Voucher Balance: ${voucherBalance.toFixed(2)}</Text>
-                    <Button colorScheme="purple" onClick={handleRecommendation}>Recommend a Friend</Button>
-                  </VStack>
-                </Box>
-              )}
-
-              <Box mb={6}>
-                <Heading as="h2" size="lg" mb={4}>Welcome to Our Restaurant</Heading>
-                <Text fontSize="lg" mb={4}>Scan a QR code to get started or log in to your account.</Text>
-                <Box width="300px" height="300px" mx="auto" mb={4}>
-                  {scanning ? (
-                    <QrReader
-                      delay={300}
-                      onError={handleError}
-                      onResult={handleScan}
-                      style={{ width: '100%' }}
-                    />
-                  ) : (
-                    <Button colorScheme="blue" size="lg" onClick={() => setScanning(true)} width="100%">
-                      Start QR Scanning
-                    </Button>
+                    ) : (
+                      <Button colorScheme="blue" size="lg" onClick={() => setScanning(true)} width="100%">
+                        Start QR Scanning
+                      </Button>
+                    )}
+                  </Box>
+                  {data !== 'No result' && (
+                    <Text fontSize="lg" mt={2} textAlign="center">Scanned Data: {data}</Text>
                   )}
                 </Box>
-                {data !== 'No result' && (
-                  <Text fontSize="lg" mt={2} textAlign="center">Scanned Data: {data}</Text>
-                )}
-              </Box>
 
-              <Box>
-                <Heading as="h2" size="lg" mb={2}>Comments</Heading>
-                <VStack spacing={4} align="stretch">
-                  <HStack>
-                    <Input
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Add a comment"
-                    />
-                    <Button onClick={addComment}>Add</Button>
-                  </HStack>
-                  <List spacing={3}>
-                    {comments.map((comment, index) => (
-                      <ListItem key={index}>{comment}</ListItem>
-                    ))}
-                  </List>
-                </VStack>
-              </Box>
-            </>
-          )}
-        </VStack>
-      </Box>
+                <Box>
+                  <Heading as="h2" size="lg" mb={2}>Comments</Heading>
+                  <VStack spacing={4} align="stretch">
+                    <HStack>
+                      <Input
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Add a comment"
+                      />
+                      <Button onClick={() => {
+                        if (newComment.trim()) {
+                          setComments([...comments, newComment.trim()]);
+                          setNewComment('');
+                        }
+                      }}>Add</Button>
+                    </HStack>
+                    <List spacing={3}>
+                      {comments.map((comment, index) => (
+                        <ListItem key={index}>{comment}</ListItem>
+                      ))}
+                    </List>
+                  </VStack>
+                </Box>
+              </>
+            )}
+          </VStack>
+        </Box>
+      </ErrorBoundary>
     </ChakraProvider>
   );
 }
