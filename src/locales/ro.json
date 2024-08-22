@@ -1,0 +1,96 @@
+{
+  "app": {
+    "title": "Sistem de Management pentru Restaurant",
+    "welcome": "Bine ați venit",
+    "login": {
+      "username": "Nume de utilizator",
+      "password": "Parolă",
+      "button": "Autentificare",
+      "noAccount": "Nu aveți un cont?",
+      "signUp": "Înregistrare"
+    },
+    "logout": "Deconectare",
+    "roles": {
+      "admin": "Administrator",
+      "waiter": "Ospătar",
+      "cook": "Bucătar",
+      "customer": "Client"
+    },
+    "views": {
+      "admin": "Vizualizare Administrator",
+      "waiter": "Vizualizare Ospătar",
+      "cook": "Vizualizare Bucătar",
+      "customer": "Vizualizare Client"
+    },
+    "menu": {
+      "items": {
+        "burger": "Burger",
+        "fries": "Cartofi prăjiți",
+        "pizza": "Pizza",
+        "salad": "Salată"
+      }
+    },
+    "order": {
+      "status": {
+        "pending": "În așteptare",
+        "preparing": "În preparare",
+        "ready": "Gata",
+        "delivered": "Livrat",
+        "noStock": "Stoc epuizat"
+      },
+      "actions": {
+        "start": "Începe Comanda",
+        "ready": "Comanda Gata",
+        "deliver": "Livrează Comanda",
+        "complete": "Comanda Finalizată"
+      }
+    },
+    "notifications": {
+      "title": "Notificare Nouă",
+      "orderReady": "Comanda #{orderId} gata pentru masa {table}",
+      "tableCall": "Masa {table} are nevoie de asistență"
+    },
+    "payment": {
+      "title": "Plată",
+      "amount": "Suma curentă a comenzii: ${amount}",
+      "methods": {
+        "myUsual": "Metoda mea obișnuită",
+        "cash": "Numerar",
+        "card": "Card",
+        "voucher": "Voucher"
+      },
+      "pay": "Plătește",
+      "voucherBalance": "Sold voucher: ${balance}",
+      "recommend": "Recomandă un prieten"
+    },
+    "qrScanner": {
+      "title": "Scanner Cod QR",
+      "start": "Începe Scanarea",
+      "scannedData": "Date scanate: {data}"
+    },
+    "comments": {
+      "title": "Comentarii",
+      "add": "Adaugă",
+      "placeholder": "Adaugă un comentariu"
+    },
+    "stockManagement": {
+      "title": "Gestionarea Stocului",
+      "inStock": "În Stoc",
+      "outOfStock": "Stoc Epuizat"
+    },
+    "accountManagement": {
+      "title": "Gestionarea Conturilor",
+      "add": "Adaugă Cont Nou",
+      "delete": "Șterge",
+      "modal": {
+        "title": "Adaugă Cont Nou",
+        "username": "Nume de utilizator",
+        "password": "Parolă",
+        "role": "Rol",
+        "addButton": "Adaugă Cont",
+        "cancel": "Anulează"
+      }
+    },
+    "callWaiter": "Cheamă Ospătarul"
+  }
+}
