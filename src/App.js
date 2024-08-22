@@ -354,9 +354,20 @@ function App() {
                       </VStack>
                     </form>
                   )}
-                  {!firebaseError && (
-                    <Button variant="link" size="sm" onClick={() => setIsAdminLogin(true)}>Restaurant Admin Login</Button>
-                  )}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => setIsAdminLogin(true)}
+                    style={{
+                      opacity: firebaseError ? 0.6 : 1,
+                      fontSize: '0.8em',
+                      color: 'gray.500',
+                      alignSelf: 'flex-end',
+                      marginTop: '1em'
+                    }}
+                  >
+                    Restaurant Admin Login
+                  </Button>
                 </VStack>
               </Box>
             ) : (
