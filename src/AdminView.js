@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Box, VStack, Heading, Button, useToast, Tabs, TabList, TabPanels, Tab, TabPanel, FormControl, FormLabel, Input, HStack, Checkbox } from '@chakra-ui/react';
-import { QRCodeCanvas } from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 import jsPDF from 'jspdf';
 
-function AdminView({ user, restaurantInfo, setRestaurantInfo }) {
+function AdminView({ restaurantInfo, setRestaurantInfo }) {
   const toast = useToast();
 
   useEffect(() => {
@@ -76,14 +76,14 @@ function AdminView({ user, restaurantInfo, setRestaurantInfo }) {
 
       // Add QR code
       const qrCode = generateQRCode(tableNumber);
-      const canvas = document.createElement('canvas');
-      QRCodeCanvas({
+      const qrCodeSvg = QRCodeSVG({
         value: qrCode,
         size: 150,
         level: 'H',
-      }, canvas);
-      const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', pageWidth / 2 - 75, 90, 150, 150);
+      });
+      const svgString = new XMLSerializer().serializeToString(qrCodeSvg);
+      const imgData = `data:image/svg+xml;base64,${btoa(svgString)}`;
+      pdf.addImage(imgData, 'SVG', pageWidth / 2 - 75, 90, 150, 150);
     };
 
     if (restaurantInfo.tables === 'unlimited') {
